@@ -142,14 +142,14 @@ const electronAssetResolver = electronFeed
 export const config = {
 	version: electronVersion,
 	productAppName: product.nameLong,
-	companyName: 'Microsoft Corporation',
-	copyright: 'Copyright (C) 2026 Microsoft. All rights reserved',
+	companyName: 'Adro',
+	copyright: 'Copyright (C) 2026 Adro. All rights reserved',
 	darwinExecutable: product.nameShort,
 	darwinIcon: 'resources/darwin/code.icns',
 	darwinBundleIdentifier: product.darwinBundleIdentifier,
 	darwinApplicationCategoryType: 'public.app-category.developer-tools',
-	darwinHelpBookFolder: 'VS Code HelpBook',
-	darwinHelpBookName: 'VS Code HelpBook',
+	darwinHelpBookFolder: 'Adro HelpBook',
+	darwinHelpBookName: 'Adro HelpBook',
 	darwinBundleDocumentTypes: [
 		...darwinBundleDocumentTypes({ 'C header file': 'h', 'C source code': 'c' }, 'c'),
 		...darwinBundleDocumentTypes({ 'Git configuration file': ['gitattributes', 'gitconfig', 'gitignore'] }, 'config'),
@@ -190,7 +190,7 @@ export const config = {
 		// Default icon with specified names
 		...darwinBundleDocumentTypes({
 			'Clojure source code': ['clj', 'cljs', 'cljx', 'clojure'],
-			'VS Code workspace file': 'code-workspace',
+			'Adro workspace file': 'code-workspace',
 			'CoffeeScript source code': 'coffee',
 			'Comma Separated Values': 'csv',
 			'CMake script': 'cmake',
@@ -245,7 +245,7 @@ export const config = {
 	productVersionString: versionedResourcesFolder,
 };
 
-function getElectron(arch: string): () => NodeJS.ReadWriteStream {
+function getElectron(arch: string, destination: string): () => NodeJS.ReadWriteStream {
 	return () => {
 		const electronOpts = {
 			...config,
@@ -259,14 +259,14 @@ function getElectron(arch: string): () => NodeJS.ReadWriteStream {
 			.pipe(jsonEditor({ name: product.nameShort }))
 			.pipe(electron(electronOpts))
 			.pipe(filter(['**', '!**/app/package.json']))
-			.pipe(vfs.dest('.build/electron'));
+			.pipe(vfs.dest(destination));
 	};
 }
 
 async function main(arch: string = process.arch): Promise<void> {
-	const electronPath = path.join(root, '.build', 'electron');
+	const electronPath = process.env['VSCODE_ELECTRON_PATH'] ?? path.join(root, '.build', 'electron');
 	await util.rimraf(electronPath)();
-	await util.streamToPromise(getElectron(arch)());
+	await util.streamToPromise(getElectron(arch, electronPath)());
 }
 
 if (import.meta.main) {

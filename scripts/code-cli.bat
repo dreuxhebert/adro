@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-title VSCode Dev
+title Adro Dev
 
 pushd %~dp0..
 
@@ -31,7 +31,7 @@ for %%A in (%*) do (
 	)
 )
 
-:: Launch Code
+:: Launch Adro
 %CODE% --inspect=5874 out\cli.js %~dp0.. %DISABLE_TEST_EXTENSION% %*
 goto end
 

@@ -75,6 +75,8 @@ The project is not yet packaged as a normal end-user application. At this stage,
 
 More detailed build instructions and contributor documentation will be added as the project becomes more stable.
 
+Branding conventions and outstanding cross-platform asset requirements are documented in [`BRANDING.md`](BRANDING.md).
+
 ## Project Goals
 
 The main goals of Adro are:

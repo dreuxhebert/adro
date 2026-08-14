@@ -51,7 +51,34 @@ async function isExpectedElectronInstalled(): Promise<boolean> {
 		const { getElectronVersion } = await import('./util.ts');
 		const { electronVersion } = getElectronVersion();
 		const installedVersion = (await fs.readFile(path.join(rootDir, '.build', 'electron', 'version'), 'utf8')).trim().replace(/^v/, '');
-		return installedVersion === electronVersion;
+		if (installedVersion !== electronVersion) {
+			return false;
+		}
+
+		const product = JSON.parse(await fs.readFile(path.join(rootDir, 'product.json'), 'utf8')) as {
+			applicationName: string;
+			nameLong: string;
+			nameShort: string;
+		};
+		const executablePath = process.platform === 'win32'
+			? path.join(rootDir, '.build', 'electron', `${product.nameShort}.exe`)
+			: process.platform === 'darwin'
+				? path.join(rootDir, '.build', 'electron', `${product.nameLong}.app`, 'Contents', 'MacOS', product.nameShort)
+				: path.join(rootDir, '.build', 'electron', product.applicationName);
+
+		// Preserve an otherwise valid Windows Electron cache across a product
+		// rename. Refreshing the entire cache can fail while antivirus or another
+		// process briefly holds default_app.asar open.
+		if (process.platform === 'win32') {
+			try {
+				await fs.stat(executablePath);
+			} catch {
+				await fs.copyFile(path.join(rootDir, '.build', 'electron', 'Code - OSS.exe'), executablePath);
+			}
+		}
+
+		await fs.stat(executablePath);
+		return true;
 	} catch {
 		return false;
 	}

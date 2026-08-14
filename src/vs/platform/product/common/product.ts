@@ -78,15 +78,15 @@ else {
 	if (Object.keys(product).length === 0) {
 		Object.assign(product, {
 			version: '1.104.0-dev',
-			nameShort: 'Code - OSS Dev',
-			nameLong: 'Code - OSS Dev',
-			applicationName: 'code-oss',
-			dataFolderName: '.vscode-oss',
-			urlProtocol: 'code-oss',
-			reportIssueUrl: 'https://github.com/microsoft/vscode/issues/new',
+			nameShort: 'Adro Dev',
+			nameLong: 'Adro Dev',
+			applicationName: 'adro',
+			dataFolderName: '.adro',
+			urlProtocol: 'adro',
+			reportIssueUrl: 'https://github.com/dreuxhebert/adro/issues/new',
 			licenseName: 'MIT',
-			licenseUrl: 'https://github.com/microsoft/vscode/blob/main/LICENSE.txt',
-			serverLicenseUrl: 'https://github.com/microsoft/vscode/blob/main/LICENSE.txt',
+			licenseUrl: 'https://github.com/dreuxhebert/adro/blob/main/LICENSE.txt',
+			serverLicenseUrl: 'https://github.com/dreuxhebert/adro/blob/main/LICENSE.txt',
 			defaultChatAgent: {
 				extensionId: 'GitHub.copilot',
 				chatExtensionId: 'GitHub.copilot-chat',

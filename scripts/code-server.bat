@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-title VSCode Server
+title Adro Server
 
 set ROOT_DIR=%~dp0..
 

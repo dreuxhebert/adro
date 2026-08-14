@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-title VSCode Web Serverless
+title Adro Web Serverless
 
 pushd %~dp0\..
 

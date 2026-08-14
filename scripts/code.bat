@@ -1,14 +1,14 @@
 @echo off
 setlocal
 
-title VSCode Dev
+title Adro Dev
 
 pushd %~dp0\..
 
 :: Get electron, compile, built-in extensions
 if "%VSCODE_SKIP_PRELAUNCH%"=="" (
 	node build/lib/preLaunch.ts || (
-		echo Failed to prepare VS Code for launch ^(build/lib/preLaunch.ts^). 1>&2
+		echo Failed to prepare Adro for launch ^(build/lib/preLaunch.ts^). 1>&2
 		goto :failed
 	)
 )
@@ -44,7 +44,7 @@ for %%A in (%*) do (
 	)
 )
 
-:: Launch Code
+:: Launch Adro
 %CODE% . %DISABLE_TEST_EXTENSION% %*
 goto end
 
