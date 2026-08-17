@@ -1,0 +1,87 @@
+{
+  "name": "adro-chat",
+  "displayName": "%displayName%",
+  "description": "%description%",
+  "version": "0.0.1",
+  "publisher": "Adro",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "AI",
+    "Chat"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onChatParticipant:adro.chat",
+    "onLanguageModelChatProvider:adro"
+  ],
+  "enabledApiProposals": [
+    "defaultChatParticipant",
+    "chatParticipantAdditions",
+    "chatProvider"
+  ],
+  "capabilities": {
+    "virtualWorkspaces": true,
+    "untrustedWorkspaces": {
+      "supported": true
+    }
+  },
+  "scripts": {
+    "compile": "node ../../node_modules/typescript/lib/tsc.js -p .",
+    "test": "npm run compile && node ../../node_modules/mocha/bin/mocha.js --ui tdd \"out/test/**/*.test.js\""
+  },
+  "contributes": {
+    "languageModelChatProviders": [
+      {
+        "vendor": "adro",
+        "displayName": "%provider.displayName%"
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "adro.chat",
+        "name": "adro",
+        "fullName": "Adro",
+        "description": "%participant.description%",
+        "isDefault": true,
+        "locations": [
+          "panel"
+        ],
+        "modes": [
+          "ask",
+          "edit",
+          "agent"
+        ]
+      }
+    ],
+    "configuration": {
+      "title": "%configuration.title%",
+      "properties": {
+        "adro.chat.backendUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:4310",
+          "format": "uri",
+          "scope": "machine",
+          "description": "%configuration.backendUrl.description%"
+        },
+        "adro.chat.developmentUserId": {
+          "type": "string",
+          "default": "development",
+          "scope": "machine",
+          "description": "%configuration.developmentUserId.description%"
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "24.x"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dreuxhebert/adro.git"
+  }
+}

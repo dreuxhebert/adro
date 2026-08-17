@@ -58,3 +58,35 @@ jobs:
 
       - name: Check architecture layers
         run: npm run valid-layers-check
+
+      - name: Compile and test Adro Chat
+        run: npm --prefix extensions/adro-chat run compile && npm --prefix extensions/adro-chat test
+
+  adro-api:
+    name: Adro API
+    runs-on: windows-2022
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: services/adro-api
+
+    steps:
+      - name: Checkout Adro
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 1
+          lfs: false
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: services/adro-api/package-lock.json
+
+      - name: Install, type-check, and test
+        run: |
+          npm ci
+          npm run typecheck
+          npm test

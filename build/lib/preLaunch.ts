@@ -87,7 +87,20 @@ async function isExpectedElectronInstalled(): Promise<boolean> {
 async function ensureCompiled() {
 	if (!(await exists('out'))) {
 		await runProcess(npm, ['run', 'compile']);
+		return;
 	}
+
+	if (!(await exists('extensions/adro-chat/out/extension.js'))) {
+		await runProcessInDir(npm, ['run', 'compile'], path.join(rootDir, 'extensions/adro-chat'));
+	}
+}
+
+function runProcessInDir(command: string, args: ReadonlyArray<string>, cwd: string) {
+	return new Promise<void>((resolve, reject) => {
+		const child = spawn(command, args, { cwd, stdio: 'inherit', env: process.env, shell: process.platform === 'win32' });
+		child.on('exit', err => !err ? resolve() : process.exit(err ?? 1));
+		child.on('error', reject);
+	});
 }
 
 async function main() {

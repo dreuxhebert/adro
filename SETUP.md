@@ -298,6 +298,10 @@ npm run watch
 
 and launch Adro again.
 
+## Adro AI backend
+
+The first-party chat slice lives in `services/adro-api` and `extensions/adro-chat`. See [`AI_ARCHITECTURE.md`](AI_ARCHITECTURE.md) for the local backend, fake provider, and default Adro Chat flow.
+
 
 ## Upstream
 

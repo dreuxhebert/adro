@@ -9,6 +9,7 @@ import { ContextKeyExpression } from '../../../../../../platform/contextkey/comm
 import { ExtensionIdentifier } from '../../../../../../platform/extensions/common/extensions.js';
 import { MockContextKeyService } from '../../../../../../platform/keybinding/test/common/mockKeybindingService.js';
 import { ChatAgentService, IChatAgentData, IChatAgentImplementation } from '../../../common/participants/chatAgents.js';
+import { ChatAgentLocation, ChatModeKind } from '../../../common/constants.js';
 import { TestConfigurationService } from '../../../../../../platform/configuration/test/common/testConfigurationService.js';
 
 const testAgentId = 'testAgent';
@@ -109,5 +110,33 @@ suite('ChatAgents', function () {
 
 			assert.throws(() => chatAgentService.registerAgentImplementation(testAgentId, agentImpl));
 		});
+	});
+
+	test('prefers the product default chat extension over another default agent', () => {
+		const impl: IChatAgentImplementation = {
+			invoke: async () => { return {}; },
+		};
+
+		store.add(chatAgentService.registerAgent('github.copilot.default', {
+			...testAgentData,
+			id: 'github.copilot.default',
+			extensionId: new ExtensionIdentifier('GitHub.copilot-chat'),
+			isDefault: true,
+			locations: [ChatAgentLocation.Chat],
+			modes: [ChatModeKind.Ask],
+		}));
+		store.add(chatAgentService.registerAgentImplementation('github.copilot.default', impl));
+
+		store.add(chatAgentService.registerAgent('adro.chat', {
+			...testAgentData,
+			id: 'adro.chat',
+			extensionId: new ExtensionIdentifier('Adro.adro-chat'),
+			isDefault: true,
+			locations: [ChatAgentLocation.Chat],
+			modes: [ChatModeKind.Ask],
+		}));
+		store.add(chatAgentService.registerAgentImplementation('adro.chat', impl));
+
+		assert.strictEqual(chatAgentService.getDefaultAgent(ChatAgentLocation.Chat, ChatModeKind.Ask)?.id, 'adro.chat');
 	});
 });

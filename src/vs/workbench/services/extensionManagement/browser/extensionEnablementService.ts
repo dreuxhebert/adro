@@ -34,8 +34,9 @@ import { isString } from '../../../../base/common/types.js';
 import { Delayer } from '../../../../base/common/async.js';
 import { IProductService } from '../../../../platform/product/common/productService.js';
 import { isWeb } from '../../../../base/common/platform.js';
-import { ChatEntitlementService, IChatEntitlementService } from '../../chat/common/chatEntitlementService.js';
+import { ChatEntitlementService, IChatEntitlementService, isAdroDefaultChatAgent } from '../../chat/common/chatEntitlementService.js';
 import { IDefaultAccountService } from '../../../../platform/defaultAccount/common/defaultAccount.js';
+import product from '../../../../platform/product/common/product.js';
 
 const SOURCE = 'IWorkbenchExtensionEnablementService';
 
@@ -60,6 +61,7 @@ export class ExtensionEnablementService extends Disposable implements IWorkbench
 	private readonly _completionsExtensionId: string | undefined;
 	private readonly _chatExtensionId: string | undefined;
 	private _extensionUnificationEnabled: boolean;
+	private _adroChatExtensionEnablementScheduled = false;
 
 	// Sessions window allow-list (lowercased extension ids)
 	private readonly _sessionsWindowAllowedExtensions: ReadonlySet<string>;
@@ -154,6 +156,23 @@ export class ExtensionEnablementService extends Disposable implements IWorkbench
 
 	private ensureChatExtensionInitialDisabledState(): void {
 		if (!this._chatExtensionId || this.environmentService.isSessionsWindow || this.environmentService.skipBuiltinExtensions?.some(id => id.toLowerCase() === this._chatExtensionId)) {
+			return;
+		}
+
+		if (isAdroDefaultChatAgent(product.defaultChatAgent)) {
+			// Copilot disables the default chat extension until setup. Adro must be
+			// enabled before the extension host starts (LifecyclePhase.Ready), or
+			// activateById reports "Unknown extension Adro.adro-chat".
+			if (this._adroChatExtensionEnablementScheduled) {
+				return;
+			}
+			this._adroChatExtensionEnablementScheduled = true;
+
+			const chatExtensionId = product.defaultChatAgent?.chatExtensionId;
+			if (chatExtensionId && this._isDisabledGlobally({ id: chatExtensionId })) {
+				this.logService.info('[chat setup] Enabling built-in Adro Chat extension');
+				void this._enableExtension({ id: chatExtensionId });
+			}
 			return;
 		}
 
@@ -454,7 +473,7 @@ export class ExtensionEnablementService extends Disposable implements IWorkbench
 		// Ensure the chat extension is disabled in fresh profiles where chat setup is not completed.
 		// This is called here (in addition to the constructor) because on profile switch the
 		// enablement service is not recreated, but the storage scope changes to the new profile.
-		if (extension.identifier.id.toLowerCase() === this._chatExtensionId) {
+		if (extension.identifier.id.toLowerCase() === this._chatExtensionId && !isAdroDefaultChatAgent(product.defaultChatAgent)) {
 			this.ensureChatExtensionInitialDisabledState();
 		}
 

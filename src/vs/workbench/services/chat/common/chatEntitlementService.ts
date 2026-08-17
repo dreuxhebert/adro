@@ -32,7 +32,15 @@ import { Mutable } from '../../../../base/common/types.js';
 import { InstantiationType, registerSingleton } from '../../../../platform/instantiation/common/extensions.js';
 import { IObservable, observableFromEvent } from '../../../../base/common/observable.js';
 import { IDefaultAccountService } from '../../../../platform/defaultAccount/common/defaultAccount.js';
+import { ExtensionIdentifier } from '../../../../platform/extensions/common/extensions.js';
 import { IDefaultAccount, IEntitlementsData } from '../../../../base/common/defaultAccount.js';
+
+/** Built-in Adro Chat extension id (`publisher.name`). */
+export const ADRO_CHAT_EXTENSION_ID = 'Adro.adro-chat';
+
+export function isAdroDefaultChatAgent(defaultChatAgent: { readonly chatExtensionId?: string } | undefined): boolean {
+	return !!defaultChatAgent?.chatExtensionId && ExtensionIdentifier.equals(defaultChatAgent.chatExtensionId, ADRO_CHAT_EXTENSION_ID);
+}
 
 export namespace ChatEntitlementContextKeys {
 
@@ -182,6 +190,11 @@ export interface IChatSetupRequirement {
  * The model picker uses a narrower condition that only surfaces interactive setup.
  */
 export function chatRequiresSetup(context: IChatSetupRequirement): boolean {
+	if (isAdroDefaultChatAgent(product.defaultChatAgent)) {
+		// Adro Chat does not use GitHub Copilot sign-in / entitlement.
+		return context.disabled || context.untrusted;
+	}
+
 	return (
 		(!context.completed && !context.hasByokModels) ||			// Setup not completed (unless BYOK models are available)
 		context.disabled ||											// Extension disabled: run setup to enable
@@ -457,6 +470,15 @@ export class ChatEntitlementService extends Disposable implements IChatEntitleme
 		}
 
 		const context = this.context = new Lazy(() => this._register(instantiationService.createInstance(ChatEntitlementContext)));
+
+		if (isAdroDefaultChatAgent(productService.defaultChatAgent)) {
+			// Adro owns Chat. Mark setup complete and skip GitHub entitlement polling.
+			void context.value.update({ installed: true, disabled: false, untrusted: false, disabledInWorkspace: false });
+			void context.value.update({ completed: true });
+			void context.value.update({ entitlement: ChatEntitlement.Pro, organisations: undefined, sku: undefined, copilotTrackingId: undefined });
+			return;
+		}
+
 		this.requests = new Lazy(() => this._register(instantiationService.createInstance(ChatEntitlementRequests, context.value, {
 			clearQuotas: () => this.clearQuotas(),
 			acceptQuotas: quotas => this.acceptQuotas(quotas)
@@ -1368,6 +1390,15 @@ export class ChatEntitlementContext extends Disposable {
 			sku: undefined,
 			copilotTrackingId: undefined
 		};
+
+		if (isAdroDefaultChatAgent(product.defaultChatAgent)) {
+			this._state.installed = true;
+			this._state.completed = true;
+			this._state.disabled = false;
+			this._state.untrusted = false;
+			this._state.disabledInWorkspace = false;
+			this._state.entitlement = ChatEntitlement.Pro;
+		}
 
 		const migrated = this.storageService.getBoolean(ChatEntitlementContext.CHAT_ENTITLEMENT_CONTEXT_MIGRATED_STORAGE_KEY, StorageScope.PROFILE) === true;
 		if (!migrated) {

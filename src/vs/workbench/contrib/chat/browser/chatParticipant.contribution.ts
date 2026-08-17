@@ -110,6 +110,26 @@ const chatParticipantExtensionPoint = extensionsRegistry.ExtensionsRegistry.regi
 					description: localize('chatParticipantDescription', "A description of this chat participant, shown in the UI."),
 					type: 'string'
 				},
+				isDefault: {
+					description: localize('chatParticipantIsDefault', "Whether this participant is the default for Chat. Requires the defaultChatParticipant API proposal."),
+					type: 'boolean'
+				},
+				locations: {
+					description: localize('chatParticipantLocations', "Locations where this participant is available."),
+					type: 'array',
+					items: {
+						type: 'string',
+						enum: ['panel', 'terminal', 'notebook', 'editing-session']
+					}
+				},
+				modes: {
+					description: localize('chatParticipantModes', "Chat modes this default participant supports."),
+					type: 'array',
+					items: {
+						type: 'string',
+						enum: ['ask', 'edit', 'agent']
+					}
+				},
 				isSticky: {
 					description: localize('chatCommandSticky', "Whether invoking the command puts the chat into a persistent mode, where the command is automatically added to the chat input for the next message."),
 					type: 'boolean'

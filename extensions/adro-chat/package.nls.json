@@ -1,0 +1,9 @@
+{
+  "displayName": "Adro Chat",
+  "description": "Adro language model and chat participant integration.",
+  "provider.displayName": "Adro",
+  "participant.description": "Chat with Adro",
+  "configuration.title": "Adro Chat",
+  "configuration.backendUrl.description": "The base URL of the Adro backend.",
+  "configuration.developmentUserId.description": "The development user identifier sent to the Adro backend."
+}

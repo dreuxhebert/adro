@@ -38,15 +38,27 @@ import { IStorageService, StorageScope, StorageTarget } from '../../../../platfo
 import { ITelemetryService } from '../../../../platform/telemetry/common/telemetry.js';
 import { IExtensionService } from '../../../services/extensions/common/extensions.js';
 import { ExtensionsRegistry } from '../../../services/extensions/common/extensionsRegistry.js';
+import { ADRO_CHAT_EXTENSION_ID } from '../../../services/chat/common/chatEntitlementService.js';
 import { ChatContextKeys } from './actions/chatContextKeys.js';
 import { ChatAgentLocation } from './constants.js';
 import { ILanguageModelsProviderGroup, ILanguageModelsConfigurationService } from './languageModelsConfiguration.js';
 
 /**
  * Vendor id used for the built-in GitHub Copilot language model provider. Treated as the default
- * vendor across the chat stack (see `ILanguageModelProviderDescriptor.isDefault`).
+ * vendor across the chat stack when Copilot is the product chat agent
+ * (see `ILanguageModelProviderDescriptor.isDefault`).
  */
 export const COPILOT_VENDOR_ID = 'copilot';
+
+/** Vendor id used for the built-in Adro language model provider. */
+export const ADRO_VENDOR_ID = 'adro';
+
+function isDefaultLanguageModelVendor(vendor: string, chatExtensionId: string | undefined): boolean {
+	if (chatExtensionId && ExtensionIdentifier.equals(chatExtensionId, ADRO_CHAT_EXTENSION_ID)) {
+		return vendor === ADRO_VENDOR_ID;
+	}
+	return vendor === COPILOT_VENDOR_ID;
+}
 
 /** Whether a missing model is conclusively absent from a vendor's live model list. Empty Copilot results remain transient while token-backed discovery completes. */
 export function isLanguageModelVendorAbsenceConclusive(vendor: string, hasLiveModels: boolean, hasResolved: boolean): boolean {
@@ -1085,7 +1097,7 @@ export class LanguageModelsService implements ILanguageModelsService {
 				managementCommand: item.managementCommand,
 				deprecation: item.deprecation,
 				when: item.when,
-				isDefault: item.vendor === COPILOT_VENDOR_ID
+				isDefault: isDefaultLanguageModelVendor(item.vendor, this._productService.defaultChatAgent?.chatExtensionId)
 			};
 			this._vendors.set(item.vendor, vendor);
 			addedVendorIds.push(item.vendor);

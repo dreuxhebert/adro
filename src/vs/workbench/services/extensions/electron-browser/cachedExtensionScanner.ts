@@ -4,7 +4,10 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as platform from '../../../../base/common/platform.js';
-import { IExtensionDescription, IExtension } from '../../../../platform/extensions/common/extensions.js';
+import { FileAccess } from '../../../../base/common/network.js';
+import { joinPath } from '../../../../base/common/resources.js';
+import { URI } from '../../../../base/common/uri.js';
+import { ExtensionIdentifier, ExtensionType, IExtensionDescription, IExtension } from '../../../../platform/extensions/common/extensions.js';
 import { dedupExtensions } from '../common/extensionsUtil.js';
 import { IExtensionsScannerService, IScannedExtension, toExtensionDescription as toExtensionDescriptionFromScannedExtension } from '../../../../platform/extensionManagement/common/extensionsScannerService.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
@@ -67,6 +70,8 @@ export class CachedExtensionScanner {
 				hasErrors = true;
 				this._logService.error(`Error scanning system extensions:`, getErrorMessage(result[0].reason));
 			}
+
+			scannedSystemExtensions = await this._ensureAdroChatScanned(scannedSystemExtensions, language);
 
 			let scannedUserExtensions: IScannedExtension[] = [];
 			if (result[1].status === 'fulfilled') {
@@ -135,6 +140,41 @@ export class CachedExtensionScanner {
 			this._logService.error(err);
 			return [];
 		}
+	}
+
+	private async _ensureAdroChatScanned(scannedSystemExtensions: IScannedExtension[], language: string | undefined): Promise<IScannedExtension[]> {
+		const adroChatExtensionId = 'Adro.adro-chat';
+		const found = scannedSystemExtensions.find(extension => ExtensionIdentifier.equals(extension.identifier.id, adroChatExtensionId));
+		if (found) {
+			this._logService.info(`[chat setup] Scanned built-in ${adroChatExtensionId} from ${found.location.fsPath} (valid: ${found.isValid})`);
+			if (!found.isValid) {
+				this._logService.error(`[chat setup] ${adroChatExtensionId} is invalid`, found.validations);
+			}
+			return scannedSystemExtensions;
+		}
+
+		const location = joinPath(URI.file(FileAccess.asFileUri('').fsPath), '..', 'extensions', 'adro-chat');
+		this._logService.warn(`[chat setup] ${adroChatExtensionId} missing from system scan; scanning ${location.fsPath}`);
+		try {
+			const extra = await this._extensionsScannerService.scanOneOrMultipleExtensions(location, ExtensionType.System, { language, includeInvalid: true });
+			if (!extra.length) {
+				this._logService.error(`[chat setup] No extension found at ${location.fsPath}`);
+				return scannedSystemExtensions;
+			}
+
+			for (const extension of extra) {
+				if (extension.isValid) {
+					this._logService.info(`[chat setup] Force-scanned ${extension.identifier.id} from ${extension.location.fsPath}`);
+					scannedSystemExtensions = [...scannedSystemExtensions, extension];
+				} else {
+					this._logService.error(`[chat setup] Force-scanned ${extension.identifier.id} is invalid and was not loaded`, extension.validations);
+				}
+			}
+		} catch (error) {
+			this._logService.error(`[chat setup] Failed to scan ${location.fsPath}`, error);
+		}
+
+		return scannedSystemExtensions;
 	}
 
 }

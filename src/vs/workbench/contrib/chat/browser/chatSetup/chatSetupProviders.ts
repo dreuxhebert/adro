@@ -24,7 +24,7 @@ import { IWorkbenchEnvironmentService } from '../../../../services/environment/c
 import { nullExtensionDescription } from '../../../../services/extensions/common/extensions.js';
 import { CountTokensCallback, ILanguageModelToolsService, IPreparedToolInvocation, IToolData, IToolImpl, IToolInvocation, IToolResult, ToolDataSource, ToolProgress } from '../../common/tools/languageModelToolsService.js';
 import { IChatAgentImplementation, IChatAgentRequest, IChatAgentResult, IChatAgentService } from '../../common/participants/chatAgents.js';
-import { ChatEntitlementContext, chatRequiresSetup, IChatEntitlementService } from '../../../../services/chat/common/chatEntitlementService.js';
+import { ChatEntitlementContext, chatRequiresSetup, IChatEntitlementService, isAdroDefaultChatAgent } from '../../../../services/chat/common/chatEntitlementService.js';
 import { ChatModel, ChatRequestModel, IChatRequestModel, IChatRequestVariableData } from '../../common/model/chatModel.js';
 import { ChatMode } from '../../common/chatModes.js';
 import { ChatRequestAgentPart, ChatRequestToolPart } from '../../common/requestParser/chatParserTypes.js';
@@ -69,6 +69,57 @@ const ToolsAgentContextKey = ContextKeyExpr.and(
 	ContextKeyExpr.equals(`config.${ChatConfiguration.AgentEnabled}`, true),
 	ContextKeyExpr.not(`previewFeaturesDisabled`) // Set by extension
 );
+
+/**
+ * Core default Chat agent used while Adro.adro-chat is missing from the
+ * extension host. Copilot's SetupAgent waits for a non-core participant and
+ * times out; this agent answers immediately so the panel is usable.
+ */
+export class AdroChatAgent extends Disposable implements IChatAgentImplementation {
+
+	static register(instantiationService: IInstantiationService): IDisposable {
+		return instantiationService.invokeFunction(accessor => {
+			const chatAgentService = accessor.get(IChatAgentService);
+			const disposables = new DisposableStore();
+			const agent = disposables.add(instantiationService.createInstance(AdroChatAgent));
+
+			for (const [mode, id, description] of [
+				[ChatModeKind.Ask, 'setup.chat', ChatMode.Ask.description.get()],
+				[ChatModeKind.Edit, 'setup.edits', ChatMode.Edit.description.get()],
+				[ChatModeKind.Agent, 'setup.agent', ChatMode.Agent.description.get()],
+			] as const) {
+				disposables.add(chatAgentService.registerAgent(id, {
+					id,
+					name: 'Adro',
+					isDefault: true,
+					isCore: true,
+					modes: [mode],
+					slashCommands: [],
+					disambiguation: [],
+					locations: [ChatAgentLocation.Chat],
+					metadata: {},
+					description,
+					extensionId: nullExtensionDescription.identifier,
+					extensionVersion: undefined,
+					extensionDisplayName: 'Adro',
+					extensionPublisherId: nullExtensionDescription.publisher
+				}));
+				disposables.add(chatAgentService.registerAgentImplementation(id, agent));
+			}
+
+			return disposables;
+		});
+	}
+
+	async invoke(request: IChatAgentRequest, progress: (parts: IChatProgress[]) => void): Promise<IChatAgentResult> {
+		const prompt = request.message.replace(/^@\S+\s*/, '').trim();
+		progress([{
+			kind: 'markdownContent',
+			content: new MarkdownString().appendText(`Echo: ${prompt}`),
+		}]);
+		return {};
+	}
+}
 
 export class SetupAgent extends Disposable implements IChatAgentImplementation {
 
@@ -321,13 +372,16 @@ export class SetupAgent extends Disposable implements IChatAgentImplementation {
 		// Ensure auth extension is enabled before waiting for chat readiness.
 		// This must run before the readiness event listeners are set up because
 		// updateRunningExtensions restarts all extension hosts.
-		const authExtensionReEnabled = await maybeEnableAuthExtension(this.extensionsWorkbenchService, this.logService);
-		if (authExtensionReEnabled) {
-			refreshTokens(this.commandService);
+		if (!isAdroDefaultChatAgent(product.defaultChatAgent)) {
+			const authExtensionReEnabled = await maybeEnableAuthExtension(this.extensionsWorkbenchService, this.logService);
+			if (authExtensionReEnabled) {
+				refreshTokens(this.commandService);
+			}
 		}
 
 		const widget = chatWidgetService.getWidgetBySessionResource(requestModel.session.sessionResource);
 		const modeInfo = widget?.input.currentModeInfo;
+		const adroChat = isAdroDefaultChatAgent(product.defaultChatAgent);
 
 		// We need a signal to know when we can resend the request to
 		// Chat. Waiting for the registration of the agent is not
@@ -345,7 +399,7 @@ export class SetupAgent extends Disposable implements IChatAgentImplementation {
 		if (!whenAgentReady) {
 			agentReady = true;
 		}
-		const whenLanguageModelReady = this.whenLanguageModelReady(languageModelsService, requestModel.modelId)?.then(() => languageModelReady = true);
+		const whenLanguageModelReady = adroChat ? undefined : this.whenLanguageModelReady(languageModelsService, requestModel.modelId)?.then(() => languageModelReady = true);
 		if (!whenLanguageModelReady) {
 			languageModelReady = true;
 		}

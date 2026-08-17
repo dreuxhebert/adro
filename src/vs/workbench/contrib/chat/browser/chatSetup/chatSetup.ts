@@ -11,6 +11,7 @@ import { ILogService } from '../../../../../platform/log/common/log.js';
 import product from '../../../../../platform/product/common/product.js';
 import { localize } from '../../../../../nls.js';
 import { EnablementState } from '../../../../services/extensionManagement/common/extensionManagement.js';
+import { isAdroDefaultChatAgent } from '../../../../services/chat/common/chatEntitlementService.js';
 import { IExtensionsWorkbenchService } from '../../../extensions/common/extensions.js';
 
 const defaultChat = {
@@ -128,6 +129,10 @@ export async function maybeEnableAuthExtension(
 	extensionsWorkbenchService: IExtensionsWorkbenchService,
 	logService: ILogService
 ): Promise<boolean> {
+	if (isAdroDefaultChatAgent(product.defaultChatAgent)) {
+		return false;
+	}
+
 	if (!defaultChat.providerExtensionId) {
 		return false;
 	}

@@ -77,6 +77,8 @@ More detailed build instructions and contributor documentation will be added as 
 
 Branding conventions and outstanding cross-platform asset requirements are documented in [`BRANDING.md`](BRANDING.md).
 
+The first-party AI service boundaries and local chat development flow are documented in [`AI_ARCHITECTURE.md`](AI_ARCHITECTURE.md).
+
 ## Project Goals
 
 The main goals of Adro are:

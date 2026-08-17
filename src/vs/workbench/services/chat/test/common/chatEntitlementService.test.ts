@@ -4,8 +4,9 @@
  *--------------------------------------------------------------------------------------------*/
 
 import assert from 'assert';
+import product from '../../../../../platform/product/common/product.js';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../base/test/common/utils.js';
-import { ChatEntitlement, chatRequiresSetup, IChatSetupRequirement } from '../../common/chatEntitlementService.js';
+import { ChatEntitlement, chatRequiresSetup, IChatSetupRequirement, isAdroDefaultChatAgent } from '../../common/chatEntitlementService.js';
 
 suite('chatRequiresSetup', () => {
 
@@ -60,5 +61,28 @@ suite('chatRequiresSetup', () => {
 
 	test('signed out but BYOK models present does not require setup', () => {
 		assert.strictEqual(chatRequiresSetup(context({ completed: false, entitlement: ChatEntitlement.Unknown, hasByokModels: true })), false);
+	});
+
+	test('Adro product skips Copilot sign-in setup', () => {
+		if (!isAdroDefaultChatAgent(product.defaultChatAgent)) {
+			return; // Copilot / upstream product builds keep the existing matrix above.
+		}
+
+		assert.strictEqual(chatRequiresSetup(context({ completed: false, entitlement: ChatEntitlement.Unknown })), false);
+		assert.strictEqual(chatRequiresSetup(context({ entitlement: ChatEntitlement.Available })), false);
+		assert.strictEqual(chatRequiresSetup(context({ disabled: true })), true);
+		assert.strictEqual(chatRequiresSetup(context({ untrusted: true })), true);
+	});
+});
+
+suite('isAdroDefaultChatAgent', () => {
+
+	ensureNoDisposablesAreLeakedInTestSuite();
+
+	test('matches the Adro chat extension id', () => {
+		assert.strictEqual(isAdroDefaultChatAgent({ chatExtensionId: 'Adro.adro-chat' }), true);
+		assert.strictEqual(isAdroDefaultChatAgent({ chatExtensionId: 'adro.adro-chat' }), true);
+		assert.strictEqual(isAdroDefaultChatAgent({ chatExtensionId: 'GitHub.copilot-chat' }), false);
+		assert.strictEqual(isAdroDefaultChatAgent(undefined), false);
 	});
 });

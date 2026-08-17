@@ -38,7 +38,7 @@ import { ITelemetryService } from '../../../../../platform/telemetry/common/tele
 import { ToggleTitleBarConfigAction } from '../../../../browser/parts/titlebar/titlebarActions.js';
 import { IWorkbenchContribution } from '../../../../common/contributions.js';
 import { IViewDescriptorService, ViewContainerLocation } from '../../../../common/views.js';
-import { ChatEntitlement, ChatEntitlementContext, ChatEntitlementContextKeys, ChatEntitlementRequests, ChatEntitlementService, IChatEntitlementService, isProUser } from '../../../../services/chat/common/chatEntitlementService.js';
+import { ChatEntitlement, ChatEntitlementContext, ChatEntitlementContextKeys, ChatEntitlementRequests, ChatEntitlementService, IChatEntitlementService, isAdroDefaultChatAgent, isProUser } from '../../../../services/chat/common/chatEntitlementService.js';
 import { EnablementState, IWorkbenchExtensionEnablementService } from '../../../../services/extensionManagement/common/extensionManagement.js';
 import { ExtensionUrlHandlerOverrideRegistry, IExtensionUrlHandlerOverride } from '../../../../services/extensions/browser/extensionUrlHandler.js';
 import { IExtensionService } from '../../../../services/extensions/common/extensions.js';
@@ -59,7 +59,7 @@ import { chatViewsWelcomeRegistry } from '../viewsWelcome/chatViewsWelcome.js';
 import { buildUpgradeUrlWithRedirect, ChatSetupAnonymous, ChatSetupStrategy, IChatSetupCommandOptions, IChatSetupResult, refreshTokens } from './chatSetup.js';
 import { ChatSetupController } from './chatSetupController.js';
 import { GrowthSessionController, registerGrowthSession } from './chatSetupGrowthSession.js';
-import { AICodeActionsHelper, AINewSymbolNamesProvider, ChatCodeActionsProvider, SetupAgent } from './chatSetupProviders.js';
+import { AdroChatAgent, AICodeActionsHelper, AINewSymbolNamesProvider, ChatCodeActionsProvider, SetupAgent } from './chatSetupProviders.js';
 import { ChatSetup } from './chatSetupRunner.js';
 
 const defaultChat = {
@@ -71,6 +71,8 @@ const SIGN_IN_TITLE_BAR_ACTION_ID = 'workbench.action.chat.signInIndicator';
 export class ChatSetupContribution extends Disposable implements IWorkbenchContribution {
 
 	static readonly ID = 'workbench.contrib.chatSetup';
+
+	private _adroChatExtensionReadyScheduled = false;
 
 	constructor(
 		@IActionViewItemService actionViewItemService: IActionViewItemService,
@@ -88,9 +90,23 @@ export class ChatSetupContribution extends Disposable implements IWorkbenchContr
 		super();
 
 		const context = chatEntitlementService.context?.value;
+		if (!context) {
+			return;
+		}
+
+		if (isAdroDefaultChatAgent(product.defaultChatAgent)) {
+			// Copilot SetupAgent waits for a non-core participant and GitHub sign-in.
+			// Register a core Adro agent so the panel always has a default, then try
+			// to activate the built-in extension for the real language-model path.
+			this.registerAdroChatAgents();
+			this.ensureAdroChatExtensionReady();
+			this.checkExtensionInstallation(context);
+			return;
+		}
+
 		const requests = chatEntitlementService.requests?.value;
-		if (!context || !requests) {
-			return; // disabled
+		if (!requests) {
+			return;
 		}
 
 		const controller = new Lazy(() => this._register(this.instantiationService.createInstance(ChatSetupController, context, requests)));
@@ -101,6 +117,52 @@ export class ChatSetupContribution extends Disposable implements IWorkbenchContr
 		this.registerSignInTitleBarEntry(actionViewItemService);
 		this.registerUrlLinkHandler();
 		this.checkExtensionInstallation(context);
+	}
+
+	private registerAdroChatAgents(): void {
+		const defaultAgentDisposables = markAsSingleton(new MutableDisposable());
+		defaultAgentDisposables.value = AdroChatAgent.register(this.instantiationService);
+	}
+
+	private ensureAdroChatExtensionReady(): void {
+		if (this._adroChatExtensionReadyScheduled) {
+			return;
+		}
+		this._adroChatExtensionReadyScheduled = true;
+
+		const chatExtensionId = product.defaultChatAgent?.chatExtensionId;
+		if (!chatExtensionId) {
+			return;
+		}
+
+		void (async () => {
+			await this.extensionService.whenInstalledExtensionsRegistered();
+			await this.extensionsWorkbenchService.queryLocal();
+
+			const local = this.extensionsWorkbenchService.local.find(ext => ExtensionIdentifier.equals(ext.identifier.id, chatExtensionId));
+			if (local) {
+				this.logService.info(`[chat setup] Adro Chat is installed (enablement=${local.enablementState}, valid=${local.local?.isValid !== false})`);
+			} else {
+				this.logService.warn(`[chat setup] Adro Chat extension '${chatExtensionId}' was not scanned. Check extensions/adro-chat.`);
+			}
+
+			const loaded = this.extensionService.extensions.find(ext => ExtensionIdentifier.equals(ext.identifier, chatExtensionId));
+			if (!loaded) {
+				this.logService.warn(`[chat setup] Adro Chat extension '${chatExtensionId}' is not loaded. Chat will use the built-in Adro agent until the extension is enabled.`);
+				return;
+			}
+
+			try {
+				const extensionIdentifier = new ExtensionIdentifier(chatExtensionId);
+				await this.extensionService.activateById(extensionIdentifier, {
+					activationEvent: 'onStartupFinished',
+					extensionId: extensionIdentifier,
+					startup: true,
+				});
+			} catch (error) {
+				this.logService.error('[chat setup] Failed to activate Adro Chat extension on startup', error);
+			}
+		})();
 	}
 
 	private registerSetupAgents(context: ChatEntitlementContext, controller: Lazy<ChatSetupController>): void {

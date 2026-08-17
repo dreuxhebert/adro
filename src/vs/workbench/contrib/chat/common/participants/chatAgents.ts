@@ -20,6 +20,7 @@ import { IConfigurationService } from '../../../../../platform/configuration/com
 import { ContextKeyExpr, IContextKey, IContextKeyService } from '../../../../../platform/contextkey/common/contextkey.js';
 import { ExtensionIdentifier } from '../../../../../platform/extensions/common/extensions.js';
 import { createDecorator } from '../../../../../platform/instantiation/common/instantiation.js';
+import product from '../../../../../platform/product/common/product.js';
 import { ChatContextKeys } from '../actions/chatContextKeys.js';
 import { IChatAgentEditedFileEvent, IChatProgressHistoryResponseContent, IChatRequestModeInstructions, IChatRequestVariableData, ISerializableChatAgentData } from '../model/chatModel.js';
 import { ChatRequestHooks } from '../promptSyntax/hookSchema.js';
@@ -471,6 +472,16 @@ export class ChatAgentService extends Disposable implements IChatAgentService {
 	}
 
 	private _preferExtensionAgent<T extends IChatAgentData>(agents: T[]): T | undefined {
+		// Prefer the product-configured default chat extension when more than one
+		// default agent is contributed (e.g. Adro Chat vs in-tree Copilot).
+		const chatExtensionId = product.defaultChatAgent?.chatExtensionId;
+		if (chatExtensionId) {
+			const productAgent = findLast(agents, agent => ExtensionIdentifier.equals(agent.extensionId, chatExtensionId));
+			if (productAgent) {
+				return productAgent;
+			}
+		}
+
 		// We potentially have multiple agents on the same location,
 		// contributed from core and from extensions.
 		// This method will prefer the last extensions provided agent

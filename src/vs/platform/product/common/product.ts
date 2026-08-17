@@ -88,8 +88,8 @@ else {
 			licenseUrl: 'https://github.com/dreuxhebert/adro/blob/main/LICENSE.txt',
 			serverLicenseUrl: 'https://github.com/dreuxhebert/adro/blob/main/LICENSE.txt',
 			defaultChatAgent: {
-				extensionId: 'GitHub.copilot',
-				chatExtensionId: 'GitHub.copilot-chat',
+				extensionId: 'Adro.adro-chat',
+				chatExtensionId: 'Adro.adro-chat',
 				provider: {
 					default: {
 						id: 'github',

@@ -14,6 +14,7 @@ export const dirs = [
 	'build/rspack',
 	'build/vite',
 	'extensions',
+	'extensions/adro-chat',
 	'extensions/configuration-editing',
 	'extensions/copilot',
 	'extensions/css-language-features',
